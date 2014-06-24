@@ -82,7 +82,7 @@ def createStringForKey(keycode, modifiers=0):
     return s
 
 codedict = {createStringForKey(code, modifiers): (code, modifiers)
-            for code in range(128) for modifiers in (0, 2, 8, 10)}
+            for code in range(128) for modifiers in (10, 8, 2, 0)}
 def keyCodeForChar(c):
     return codedict[c]
 
