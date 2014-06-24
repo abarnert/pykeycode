@@ -87,7 +87,7 @@ def keyCodeForChar(c):
     return codedict[c]
 
 def printcode(keycode):
-    print(u'{}: {!r} S{!r} O{!r} SO{!r}'.format(
+    print(u"{}: {!r} S{!r} O{!r} SO{!r}".format(
         keycode,
         createStringForKey(keycode, 0),
         createStringForKey(keycode, 2),
@@ -104,7 +104,8 @@ if __name__ == '__main__':
         try:
             keycode = int(arg)
         except ValueError:
-            print(u'{}: keycode {}, mod {}'.format(arg, *keyCodeForChar(arg)))
+            print(u"{!r} ('{}'): keycode {}, mod {}".format(
+                arg, arg, *keyCodeForChar(arg)))
         else:
             printcode(keycode)
     if len(sys.argv) < 2:
