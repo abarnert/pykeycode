@@ -57,7 +57,7 @@ kUCKeyTranslateNoDeadKeysBit = 0
 kTISPropertyUnicodeKeyLayoutData = ctypes.c_void_p.in_dll(
     carbon, 'kTISPropertyUnicodeKeyLayoutData')
 
-def createStringForKey(keycode):
+def createStringForKey(keycode, modifiers=0):
     keyboard_p = carbon.TISCopyCurrentKeyboardInputSource()
     keyboard = objcify(keyboard_p)
     layout_p = carbon.TISGetInputSourceProperty(keyboard_p, 
@@ -70,7 +70,7 @@ def createStringForKey(keycode):
     retval = carbon.UCKeyTranslate(layoutbytes.tobytes(),
                                    keycode,
                                    kUCKeyActionDisplay,
-                                   0,
+                                   modifiers,
                                    carbon.LMGetKbdType(),
                                    kUCKeyTranslateNoDeadKeysBit,
                                    ctypes.byref(keysdown),
@@ -81,19 +81,32 @@ def createStringForKey(keycode):
     CoreFoundation.CFRelease(keyboard)
     return s
 
-codedict = {createStringForKey(code): code for code in range(128)}
+codedict = {createStringForKey(code, modifiers): (code, modifiers)
+            for code in range(128) for modifiers in (0, 2, 8, 10)}
 def keyCodeForChar(c):
     return codedict[c]
+
+def printcode(keycode):
+    print(u'{}: {!r} S{!r} O{!r} SO{!r}'.format(
+        keycode,
+        createStringForKey(keycode, 0),
+        createStringForKey(keycode, 2),
+        createStringForKey(keycode, 8),
+        createStringForKey(keycode, 10)))
 
 if __name__ == '__main__':
     import sys
     for arg in sys.argv[1:]:
         try:
+            arg = arg.decode(sys.stdin.encoding)
+        except AttributeError:
+            pass
+        try:
             keycode = int(arg)
         except ValueError:
-            print(u'{}: {}'.format(arg, keyCodeForChar(arg)))
+            print(u'{}: keycode {}, mod {}'.format(arg, *keyCodeForChar(arg)))
         else:
-            print('{}: {!r}'.format(keycode, createStringForKey(keycode)))
+            printcode(keycode)
     if len(sys.argv) < 2:
         for keycode in range(128):
-            print('{}: {!r}'.format(keycode, createStringForKey(keycode)))
+            printcode(keycode)
