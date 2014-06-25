@@ -4,9 +4,6 @@
 import ctypes
 import ctypes.util
 import struct
-import CoreFoundation
-import Foundation
-import objc
 
 try:
     unichr
@@ -15,63 +12,7 @@ except NameError:
 
 carbon_path = ctypes.util.find_library('Carbon')
 carbon = ctypes.cdll.LoadLibrary(carbon_path)
-    
-# We could rely on the fact that kTISPropertyUnicodeKeyLayoutData has
-# been the string @"TISPropertyUnicodeKeyLayoutData" since even the
-# Classic Mac days. Or we could load it from the framework. 
-# Unfortunately, the framework doesn't have PyObjC wrappers, and there's
-# no easy way to force PyObjC to wrap a CF/ObjC object that it doesn't
-# know about. So:
-_objc = ctypes.PyDLL(objc._objc.__file__)
-_objc.PyObjCObject_New.restype = ctypes.py_object
-_objc.PyObjCObject_New.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
-def objcify(ptr):
-    return _objc.PyObjCObject_New(ptr, 0, 1)
-kTISPropertyUnicodeKeyLayoutData_p = ctypes.c_void_p.in_dll(
-    carbon, 'kTISPropertyUnicodeKeyLayoutData')
-kTISPropertyUnicodeKeyLayoutData = objcify(kTISPropertyUnicodeKeyLayoutData_p)
 
-OptionBits = ctypes.c_uint32
-UniCharCount = ctypes.c_uint8
-UniChar = ctypes.c_uint16
-UniChar4 = UniChar * 4
-
-ByteOffset = ctypes.c_uint32
-ItemCount = ctypes.c_uint32
-
-class UCKeyboardTypeHeader(ctypes.Structure):
-    _fields_ = [('keyboardTypeFirst', ctypes.c_uint32),
-                ('keyboardTypeLast', ctypes.c_uint32),
-                ('keyModifiersToTableNumOffset', ByteOffset),
-                ('keyToCharTableIndexOffset', ByteOffset),
-                ('keyStateRecordsIndexOffset', ByteOffset),
-                ('keyStateTerminatorsOffset', ByteOffset),
-                ('keySequenceDataIndexOffset', ByteOffset)]
-
-class UCKeyboardLayout(ctypes.Structure):
-    _fields_ = [('keyLayoutHeaderFormat', ctypes.c_uint16),
-                ('keyLayoutDataVersion', ctypes.c_uint16),
-                ('keyLayoutFeatureInfoOffset', ByteOffset),
-                ('keyboardTypeCount', ItemCount),
-                ('keyboardTypeList', UCKeyboardTypeHeader*1)]
-
-class UCKeyLayoutFeatureInfo(ctypes.Structure):
-    _fields_ = [('keyLayoutFeatureInfoFormat', ctypes.c_uint16),
-                ('reserved', ctypes.c_uint16),
-                ('maxOutputStringLength', UniCharCount)]
-
-class UCKeyModifiersToTableNum(ctypes.Structure):
-    _fields_ = [('keyModifiersToTableNumFormat', ctypes.c_uint16),
-                ('defaultTableNum', ctypes.c_uint16),
-                ('modifiersCount', ItemCount),
-                ('tableNum', ctypes.c_uint8*1)]
-
-class UCKeyToCharTableIndex(ctypes.Structure):
-    _fields_ = [('keyToCharTableIndexFormat', ctypes.c_uint16),
-                ('keyToCharTableSize', ctypes.c_uint16),
-                ('keyToCharTableCount', ItemCount),
-                ('keyToCharTableOffsets', ByteOffset*1)]
-        
 CFIndex = ctypes.c_int64
 class CFRange(ctypes.Structure):
     _fields_ = [('loc', CFIndex),
@@ -87,6 +28,8 @@ carbon.CFDataGetLength.argtypes = [ctypes.c_void_p]
 carbon.CFDataGetLength.restype = ctypes.c_uint64
 carbon.CFDataGetBytes.argtypes = [ctypes.c_void_p, CFRange, ctypes.c_void_p]
 carbon.CFDataGetBytes.restype = None
+carbon.CFRelease.argtypes = [ctypes.c_void_p]
+carbon.CFRelease.restype = None
 
 kTISPropertyUnicodeKeyLayoutData = ctypes.c_void_p.in_dll(
     carbon, 'kTISPropertyUnicodeKeyLayoutData')
@@ -216,7 +159,6 @@ def parselayout(buf, ktype):
 
 def getlayout():
     keyboard_p = carbon.TISCopyCurrentKeyboardInputSource()
-    keyboard = objcify(keyboard_p)
     layout_p = carbon.TISGetInputSourceProperty(keyboard_p, 
                                                 kTISPropertyUnicodeKeyLayoutData)
     layout_size = carbon.CFDataGetLength(layout_p)
@@ -224,7 +166,7 @@ def getlayout():
     carbon.CFDataGetBytes(layout_p, CFRange(0, layout_size), ctypes.byref(layout_buf))
     ktype = carbon.LMGetKbdType()
     ret = parselayout(layout_buf, ktype)
-    CoreFoundation.CFRelease(keyboard)
+    carbon.CFRelease(keyboard_p)
     return ret
 
 mapping, revmapping, modmapping = getlayout()
