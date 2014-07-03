@@ -4,6 +4,7 @@
 import ctypes
 import ctypes.util
 import struct
+import unicodedata
 
 try:
     unichr
@@ -108,9 +109,9 @@ def parselayout(buf, ktype):
             mapping.setdefault(ch, (j, mod))
             revmapping[j, mod] = ch
         elif key == 0xFFFF:
-            revmapping[j, mod] = ''
+            revmapping[j, mod] = u''
         else:
-            revmapping[j, mod] = '<{}>'.format(key)
+            revmapping[j, mod] = u'<{}>'.format(key)
     
     # Get char tables
     cf, csize, ccount = struct.unpack_from('HHI', buf, charoff)
@@ -124,7 +125,7 @@ def parselayout(buf, ktype):
         for j, key in enumerate(struct.unpack_from('H'*csize, buf, tableoff)):
             ch = None
             if key >= 0xFFFE:
-                revmapping[j, mod] = '<{}>'.format(key)
+                revmapping[j, mod] = u'<{}>'.format(key)
             elif key & 0x0C000 == 0x4000:
                 dead = key & ~0xC000
                 if dead < len(deadkeys):
@@ -133,9 +134,9 @@ def parselayout(buf, ktype):
                         deadstatemapping[nextstate] = (j, mod)
                         if nextstate-1 < len(dkterms):
                             basekey = lookupseq(dkterms[nextstate-1])
-                            revmapping[j, mod] = '<deadkey #{}: {}>'.format(nextstate, basekey)
+                            revmapping[j, mod] = u'<deadkey #{}: {}>'.format(nextstate, basekey)
                         else:
-                            revmapping[j, mod] = '<deadkey #{}>'.format(nextstate)
+                            revmapping[j, mod] = u'<deadkey #{}>'.format(nextstate)
                     elif eformat == 1: # terminal
                         deadrevmapping[j, mod] = deadkeys[dead]
                         lookup_and_add(cdata, j, mod)
@@ -185,8 +186,22 @@ def modstr(mod):
         s = '?-' + s
     return s
 
+def isprintable(s):
+    # Unicode defines all but the following as printable. This is the
+    # same rule Python 3.x uses for str.isprintable, and also for which
+    # characters need to be hexlified when repr()ed. (Would it be simpler
+    # to just repr and strip off the quotes...?)
+    for c in s:
+        cat = unicodedata.category(c)
+        if cat[0] in 'C':
+            return False
+        elif cat == 'Zs' and c != ' ':
+            return False
+        elif cat in ('Zl, Zp'):
+            return False
+
 def printify(s):
-    return s if s.isprintable() else s.encode('unicode_escape').decode('utf-8')
+    return s if isprintable(s) else s.encode('unicode_escape').decode('utf-8')
 
 def printcode(keycode):
     keys = ('{}:{}'.format(modstr(mod).rstrip('-'),
