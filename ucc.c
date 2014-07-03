@@ -1,7 +1,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <ApplicationServices/ApplicationServices.h>
 
-#define do(x) printf("%x\n", x);
+#define do(x) printf("%-20s: %x\n", #x, x);
 
 int main() {
   do(NX_ALPHASHIFTMASK);
